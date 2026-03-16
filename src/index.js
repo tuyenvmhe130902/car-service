@@ -13,6 +13,7 @@ dotenv.config();
 
 const app = express();
 const PORT = process.env.PORT || 3000;
+const USE_SUPABASE = !!process.env.SUPABASE_DB_URL;
 
 // Middleware
 app.use(cors());
@@ -36,11 +37,15 @@ app.get('/health', (req, res) => {
 app.listen(PORT, '0.0.0.0', async () => {
   console.log(`🚀 Server running on port ${PORT}`);
 
-  try {
-    await initializeDatabase();
-    await runMigrations('up');
-    console.log('✅ Database initialized & migrations completed');
-  } catch (error) {
-    console.error('❌ Database init or migration failed:', error);
+  if (USE_SUPABASE) {
+    console.log('✅ Using Supabase database (SUPABASE_DB_URL set). Skipping local SQLite migrations.');
+  } else {
+    try {
+      await initializeDatabase();
+      await runMigrations('up');
+      console.log('✅ SQLite database initialized & migrations completed');
+    } catch (error) {
+      console.error('❌ Database init or migration failed:', error);
+    }
   }
 });

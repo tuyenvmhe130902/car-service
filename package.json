@@ -20,6 +20,8 @@
         "helmet": "^7.1.0",
         "morgan": "^1.10.0",
         "pdfkit": "^0.16.0",
+        "pg": "^8.13.0",
+        "postgres": "^3.4.8",
         "sqlite": "^5.1.1"
     },
     "devDependencies": {
