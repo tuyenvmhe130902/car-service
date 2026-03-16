@@ -1,10 +1,4 @@
-import Database from 'better-sqlite3';
-import path from 'path';
-import { fileURLToPath } from 'url';
-import fs from 'fs';
 import { Pool } from 'pg';
-
-const __dirname = path.dirname(fileURLToPath(import.meta.url));
 
 let db = null;
 let pgPool = null;
@@ -14,10 +8,6 @@ function normalizeParams(params) {
   if (params === undefined || params === null) return [];
   if (Array.isArray(params)) return params;
   return [params];
-}
-
-function usingSupabase() {
-  return !!process.env.SUPABASE_DB_URL;
 }
 
 function getPgPool() {
@@ -99,71 +89,16 @@ async function createSupabaseDb() {
   return supabaseDb;
 }
 
-async function createSqliteDb() {
-  const dbPath = path.join(__dirname, '../../data/database.sqlite');
-  const dbDir = path.dirname(dbPath);
-
-  if (!fs.existsSync(dbDir)) {
-    fs.mkdirSync(dbDir, { recursive: true });
-  }
-
-  const rawDb = new Database(dbPath);
-
-  return {
-    raw: rawDb,
-    async all(sql, params) {
-      const stmt = rawDb.prepare(sql);
-      const rows = stmt.all(...normalizeParams(params));
-      return rows;
-    },
-    async get(sql, params) {
-      const stmt = rawDb.prepare(sql);
-      const row = stmt.get(...normalizeParams(params));
-      return row;
-    },
-    async run(sql, params) {
-      const stmt = rawDb.prepare(sql);
-      const info = stmt.run(...normalizeParams(params));
-      return {
-        ...info,
-        lastID: info.lastInsertRowid
-      };
-    },
-    async exec(sql) {
-      rawDb.exec(sql);
-    }
-  };
-}
-
 export async function getDb() {
   if (db) {
     return db;
   }
 
-  if (usingSupabase()) {
-    db = await createSupabaseDb();
-  } else {
-    db = await createSqliteDb();
-  }
+  db = await createSupabaseDb();
 
   return db;
 }
 
 export async function initializeDatabase() {
-  if (usingSupabase()) {
-    console.log('Supabase mode: skipping local SQLite initialization');
-    return;
-  }
-
-  const db = await getDb();
-
-  await db.exec(`
-    CREATE TABLE IF NOT EXISTS migrations (
-      id INTEGER PRIMARY KEY AUTOINCREMENT,
-      migration_name TEXT NOT NULL UNIQUE,
-      executed_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
-    );
-  `);
-
-  console.log('SQLite database initialized');
+  console.log('Using Supabase database - no local SQLite initialization required');
 }

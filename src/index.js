@@ -3,8 +3,6 @@ import cors from 'cors';
 import helmet from 'helmet';
 import morgan from 'morgan';
 import dotenv from 'dotenv';
-import { initializeDatabase } from './db/init.js';
-import { runMigrations } from './db/migrations/index.js';
 import vehicleRoutes from './routes/vehicles.js';
 import serviceRoutes from './routes/services.js';
 import exportRoutes from './routes/exports.js';
@@ -13,7 +11,14 @@ dotenv.config();
 
 const app = express();
 const PORT = process.env.PORT || 3000;
-const USE_SUPABASE = !!process.env.SUPABASE_DB_URL;
+const HAS_SUPABASE_URL = !!process.env.SUPABASE_DB_URL;
+
+if (!HAS_SUPABASE_URL) {
+  console.error('SUPABASE_DB_URL is NOT SET. This backend is configured to use Supabase only.');
+  process.exit(1);
+}
+
+console.log('SUPABASE_DB_URL is SET - using Supabase as the database');
 
 // Middleware
 app.use(cors());
@@ -36,16 +41,5 @@ app.get('/health', (req, res) => {
 
 app.listen(PORT, '0.0.0.0', async () => {
   console.log(`🚀 Server running on port ${PORT}`);
-
-  if (USE_SUPABASE) {
-    console.log('✅ Using Supabase database (SUPABASE_DB_URL set). Skipping local SQLite migrations.');
-  } else {
-    try {
-      await initializeDatabase();
-      await runMigrations('up');
-      console.log('✅ SQLite database initialized & migrations completed');
-    } catch (error) {
-      console.error('❌ Database init or migration failed:', error);
-    }
-  }
+  console.log('✅ Using Supabase database (SQLite support removed)');
 });
