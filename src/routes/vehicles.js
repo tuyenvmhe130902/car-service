@@ -110,37 +110,35 @@ router.delete('/:id', async (req, res) => {
   try {
     const db = await getDb();
 
-    await db.exec('BEGIN TRANSACTION');
+    const payload = await db.withTransaction(async (tx) => {
+      const deletedServicesResult = await tx.run(
+        'DELETE FROM service_records WHERE vehicle_id = ?',
+        vehicleId
+      );
 
-    // Delete all service records for this vehicle
-    const deletedServicesResult = await db.run(
-      'DELETE FROM service_records WHERE vehicle_id = ?',
-      vehicleId
-    );
+      const deletedVehicleResult = await tx.run(
+        'DELETE FROM vehicles WHERE id = ?',
+        vehicleId
+      );
 
-    // Delete the vehicle itself
-    const deletedVehicleResult = await db.run(
-      'DELETE FROM vehicles WHERE id = ?',
-      vehicleId
-    );
+      if (deletedVehicleResult.changes === 0) {
+        const err = new Error('Vehicle not found');
+        err.code = 'NOT_FOUND';
+        throw err;
+      }
 
-    if (deletedVehicleResult.changes === 0) {
-      await db.exec('ROLLBACK');
-      return res.status(404).json({ message: 'Vehicle not found' });
-    }
-
-    await db.exec('COMMIT');
+      return {
+        deletedServiceRecords: deletedServicesResult.changes
+      };
+    });
 
     res.json({
       message: 'Vehicle and its service history deleted successfully',
-      deletedServiceRecords: deletedServicesResult.changes
+      deletedServiceRecords: payload.deletedServiceRecords
     });
   } catch (error) {
-    try {
-      const db = await getDb();
-      await db.exec('ROLLBACK');
-    } catch (_) {
-      // ignore rollback error
+    if (error.code === 'NOT_FOUND') {
+      return res.status(404).json({ message: 'Vehicle not found' });
     }
     res.status(500).json({ error: error.message });
   }
